@@ -50,3 +50,5 @@ Package `github.com/qedus/memcache.GetMulti`:
     }
 ```
 
+Having the `GetMulti` method as above means `Codec.GetMulti` can and is easily implemented.
+
