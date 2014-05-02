@@ -1,7 +1,7 @@
-memcache
+mcache
 ========
 
-Package memcache is an API for App Engine's memcache. It is more consistent with the datastore API.
+Package mcache is an API for App Engine's memcache. It is more consistent with the datastore API.
 
 There are [good arguments](https://groups.google.com/forum/#!topic/google-appengine-go/kiuvTHf32zw/discussion) for the current official [appengine/memcache](https://developers.google.com/appengine/docs/go/memcache/reference) API. However I prefer what is created here.
 
@@ -17,7 +17,7 @@ Package `appengine/memcache.GetMulti`:
     }
 ```
 
-Package `github.com/qedus/memcache.GetMulti`:
+Package `github.com/qedus/mcache.GetMulti`:
 ```go
     // GetMulti is a batch version of Get. The returned error can be an
     // appengine.MultiError. In which case nil error indicates a cache hit
@@ -38,8 +38,7 @@ Package `github.com/qedus/memcache.GetMulti`:
             if mi[i] == nil {
                 // Valid item.
             } else if mi[i] == ErrCacheMiss {
-                // No item retrieved from cache. Note that item will also
-                // be nil.
+                // Cache miss. Note that item will also be nil.
                 continue
             } else {
                 // This should never be reached.
