@@ -1,152 +1,199 @@
 package mcache
 
 import (
-	"appengine"
-	"appengine/memcache"
-	"reflect"
+    "bytes"
+    "appengine"
+    "encoding/gob"
+    "encoding/json"
+    "appengine/memcache"
+    "reflect"
 )
 
 var (
-	ErrCacheMiss = memcache.ErrCacheMiss
+    ErrCacheMiss = memcache.ErrCacheMiss
 )
 
 func Add(c appengine.Context, item *memcache.Item) error {
-	return memcache.Add(c, item)
+    return memcache.Add(c, item)
 }
 
 func AddMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.AddMulti(c, items)
+    return memcache.AddMulti(c, items)
 }
 
 func CompareAndSwap(c appengine.Context, item *memcache.Item) error {
-	return memcache.CompareAndSwap(c, item)
+    return memcache.CompareAndSwap(c, item)
 }
 
 func CompareAndSwapMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.CompareAndSwapMulti(c, items)
+    return memcache.CompareAndSwapMulti(c, items)
 }
 
 func Delete(c appengine.Context, key string) error {
-	return memcache.Delete(c, key)
+    return memcache.Delete(c, key)
 }
 
 func DeleteMulti(c appengine.Context, keys []string) error {
-	return memcache.DeleteMulti(c, keys)
+    return memcache.DeleteMulti(c, keys)
 }
 
 func Flush(c appengine.Context) error {
-	return memcache.Flush(c)
+    return memcache.Flush(c)
 }
 
 func Get(c appengine.Context, key string) (*memcache.Item, error) {
-	return memcache.Get(c, key)
+    return memcache.Get(c, key)
 }
 
 func GetMulti(c appengine.Context, keys []string) ([]*memcache.Item, error) {
-	itemsMap, err := memcache.GetMulti(c, keys)
-	if err != nil {
-		return nil, err
-	}
+    itemsMap, err := memcache.GetMulti(c, keys)
+    if err != nil {
+        return nil, err
+    }
 
-	items := make([]*memcache.Item, len(keys))
-	multiErr, errsNil := make(appengine.MultiError, len(keys)), true
-	for i, key := range keys {
-		if item, ok := itemsMap[key]; ok {
-			items[i] = item
-		} else {
-			multiErr[i] = memcache.ErrCacheMiss
-			errsNil = false
-		}
-	}
-	if errsNil {
-		return items, nil
-	}
-	return items, multiErr
+    items := make([]*memcache.Item, len(keys))
+    multiErr, errsNil := make(appengine.MultiError, len(keys)), true
+    for i, key := range keys {
+        if item, ok := itemsMap[key]; ok {
+            items[i] = item
+        } else {
+            multiErr[i] = memcache.ErrCacheMiss
+            errsNil = false
+        }
+    }
+    if errsNil {
+        return items, nil
+    }
+    return items, multiErr
 }
 
 func Increment(c appengine.Context,
-	key string, delta int64, initialValue uint64) (newValue uint64, err error) {
-	return memcache.Increment(c, key, delta, initialValue)
+    key string, delta int64, initialValue uint64) (newValue uint64, err error) {
+    return memcache.Increment(c, key, delta, initialValue)
 }
 
 func IncrementExisting(c appengine.Context,
-	key string, delta int64) (newValue uint64, err error) {
-	return IncrementExisting(c, key, delta)
+    key string, delta int64) (newValue uint64, err error) {
+    return IncrementExisting(c, key, delta)
 }
 
 func Set(c appengine.Context, item *memcache.Item) error {
-	return memcache.Set(c, item)
+    return memcache.Set(c, item)
 }
 
 func SetMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.SetMulti(c, items)
+    return memcache.SetMulti(c, items)
 }
 
 type Codec struct {
-	memcache.Codec
+    Marshal   func(interface{}) ([]byte, error)
+    Unmarshal func([]byte, interface{}) error
 }
 
 func (cd Codec) GetMulti(c appengine.Context, keys []string,
-	dst interface{}) ([]*memcache.Item, error) {
+    dst interface{}) ([]*memcache.Item, error) {
 
-	itemsMap, err := memcache.GetMulti(c, keys)
-	if err != nil {
-		return nil, err
-	}
+    itemsMap, err := memcache.GetMulti(c, keys)
+    if err != nil {
+        return nil, err
+    }
 
-	v := reflect.ValueOf(dst)
-	items := make([]*memcache.Item, len(keys))
-	multiErr, errsNil := make(appengine.MultiError, len(keys)), true
-	for i, key := range keys {
-		if item, ok := itemsMap[key]; ok {
-			err := cd.Unmarshal(item.Value, v.Index(i).Interface())
-			if err != nil {
-				return nil, err
-			}
-			item.Object = v.Index(i).Interface()
-			items[i] = item
-		} else {
-			multiErr[i] = memcache.ErrCacheMiss
-			errsNil = false
-		}
-	}
-	if errsNil {
-		return items, nil
-	}
-	return items, multiErr
+    v := reflect.ValueOf(dst)
+    items := make([]*memcache.Item, len(keys))
+    multiErr, errsNil := make(appengine.MultiError, len(keys)), true
+    for i, key := range keys {
+        if item, ok := itemsMap[key]; ok {
+            err := cd.Unmarshal(item.Value, v.Index(i).Interface())
+            if err != nil {
+                multiErr[i] = err
+                errsNil = false
+            } else {
+                item.Object = v.Index(i).Interface()
+                items[i] = item
+            }
+        } else {
+            multiErr[i] = memcache.ErrCacheMiss
+            errsNil = false
+        }
+    }
+    if errsNil {
+        return items, nil
+    }
+    return items, multiErr
 }
 
 func (cd Codec) Get(c appengine.Context,
-	key string, dst interface{}) (*memcache.Item, error) {
-	return cd.Codec.Get(c, key, dst)
+    key string, dst interface{}) (*memcache.Item, error) {
+
+    items, err := cd.GetMulti(c, []string{key}, []interface{}{dst})
+    if err == nil {
+        return items[0], err
+    } else if me, ok := err.(appengine.MultiError); ok {
+        return nil, me[0]
+    } 
+    return nil, err
 }
 
+func (cd Codec) marshalItems(items []*memcache.Item) error {
+    for _, item := range items {
+
+        v, err := cd.Marshal(item.Object)
+        if err != nil {
+            return err
+        }
+        item.Value = v
+    }
+    return nil
+}
+
+
 func (cd Codec) Set(c appengine.Context, item *memcache.Item) error {
-	return cd.Codec.Set(c, item)
+    return cd.SetMulti(c, []*memcache.Item{item})
 }
 
 func (cd Codec) SetMulti(c appengine.Context, items []*memcache.Item) error {
-	return cd.Codec.SetMulti(c, items)
+    if err := cd.marshalItems(items); err != nil {
+        return err
+    }
+    return SetMulti(c, items)
 }
 
 func (cd Codec) Add(c appengine.Context, item *memcache.Item) error {
-	return cd.Codec.Add(c, item)
+    return cd.AddMulti(c, []*memcache.Item{item})
 }
 
 func (cd Codec) AddMulti(c appengine.Context, items []*memcache.Item) error {
-	return cd.Codec.AddMulti(c, items)
+    if err := cd.marshalItems(items); err != nil {
+        return err
+    }
+    return AddMulti(c, items)
 }
 
 func (cd Codec) CompareAndSwap(c appengine.Context, item *memcache.Item) error {
-	return cd.Codec.CompareAndSwap(c, item)
+    return cd.CompareAndSwapMulti(c, []*memcache.Item{item})
 }
 
 func (cd Codec) CompareAndSwapMulti(c appengine.Context,
-	items []*memcache.Item) error {
-	return cd.Codec.CompareAndSwapMulti(c, items)
+    items []*memcache.Item) error {
+    if err := cd.marshalItems(items); err != nil {
+        return err
+    }
+    return CompareAndSwapMulti(c, items)
 }
 
 var (
-	Gob  = Codec{Codec: memcache.Gob}
-	JSON = Codec{Codec: memcache.JSON}
+    Gob  = Codec{gobMarshal, gobUnmarshal}
+    JSON = Codec{json.Marshal, json.Unmarshal}
 )
+
+func gobMarshal(v interface{}) ([]byte, error) {
+    buf := bytes.Buffer{}
+    if err := gob.NewEncoder(&buf).Encode(v); err != nil {
+        return nil, err
+    }
+    return buf.Bytes(), nil
+}
+
+func gobUnmarshal(data []byte, v interface{}) error {
+    return gob.NewDecoder(bytes.NewBuffer(data)).Decode(v)
+}
