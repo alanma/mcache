@@ -121,5 +121,8 @@ func TestMcacheCodec(t *testing.T) {
 		if items[i].Key != key {
 			t.Fatal("incorrect key")
 		}
+		if items[i].Object != entities[i] {
+			t.Fatal("incorrect object")
+		}
 	}
 }

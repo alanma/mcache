@@ -83,8 +83,6 @@ func SetMulti(c appengine.Context, items []*memcache.Item) error {
 }
 
 type Codec struct {
-	//    Marshal func(interface{}) ([]byte, error)
-	//   Unmarshal func([]byte, interface{}) error
 	memcache.Codec
 }
 
@@ -105,6 +103,7 @@ func (cd Codec) GetMulti(c appengine.Context, keys []string,
 			if err != nil {
 				return nil, err
 			}
+			item.Object = v.Index(i).Interface()
 			items[i] = item
 		} else {
 			multiErr[i] = memcache.ErrCacheMiss
