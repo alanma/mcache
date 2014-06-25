@@ -35,9 +35,9 @@ Package `github.com/qedus/mcache.GetMulti`:
     } else if me, ok := err.(appengine.MultiError); ok {
         // Only some keys have returned an item.
         for i, item := range items {
-            if mi[i] == nil {
+            if me[i] == nil {
                 // Valid item.
-            } else if mi[i] == ErrCacheMiss {
+            } else if me[i] == ErrCacheMiss {
                 // Cache miss. Note that item will also be nil.
                 continue
             } else {
