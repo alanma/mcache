@@ -9,10 +9,6 @@ import (
 	"reflect"
 )
 
-var (
-	ErrCacheMiss = memcache.ErrCacheMiss
-)
-
 func Add(c appengine.Context, item *memcache.Item) error {
 	return memcache.Add(c, item)
 }

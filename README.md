@@ -21,7 +21,7 @@ Package `github.com/qedus/mcache.GetMulti`:
 ```go
     // GetMulti is a batch version of Get. The returned error can be an
     // appengine.MultiError. In which case nil error indicates a cache hit
-    // and ErrCacheMiss indicates a cache miss.
+    // and memcache.ErrCacheMiss indicates a cache miss.
     func GetMulti(c appengine.Context, keys []string) ([]*Item, error) {
         ...
     }
@@ -37,7 +37,7 @@ Package `github.com/qedus/mcache.GetMulti`:
         for i, item := range items {
             if me[i] == nil {
                 // Valid item.
-            } else if me[i] == ErrCacheMiss {
+            } else if me[i] == memcache.ErrCacheMiss {
                 // Cache miss. Note that item will also be nil.
                 continue
             } else {
