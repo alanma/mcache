@@ -37,11 +37,10 @@ func TestMcache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test nil error.
 	keys := []string{"one", "two"}
 	items, err := mcache.GetMulti(c, keys)
-	if err != nil {
-		t.Fatal(err)
+	if _, ok := err.(appengine.MultiError); !ok {
+		t.Fatal("appengine.MultiError expected")
 	}
 	for i, key := range keys {
 		item := items[i]
@@ -63,7 +62,7 @@ func TestMcache(t *testing.T) {
 	}
 	for i, key := range keys {
 		if i == 1 {
-			if me[i] != mcache.ErrCacheMiss {
+			if me[i] != memcache.ErrCacheMiss {
 				t.Fatal("incorrect error")
 			}
 			continue
@@ -110,8 +109,8 @@ func TestMcacheCodec(t *testing.T) {
 		entities[i] = &Entity{}
 	}
 	items, err := mcache.Gob.GetMulti(c, keys, entities)
-	if err != nil {
-		t.Fatal(err)
+	if _, ok := err.(appengine.MultiError); !ok {
+		t.Fatal("appengine.MultiError expected")
 	}
 
 	for i, key := range keys {

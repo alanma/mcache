@@ -14,7 +14,11 @@ func Add(c appengine.Context, item *memcache.Item) error {
 }
 
 func AddMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.AddMulti(c, items)
+	err := memcache.AddMulti(c, items)
+	if err == nil {
+		return make(appengine.MultiError, len(items))
+	}
+	return err
 }
 
 func CompareAndSwap(c appengine.Context, item *memcache.Item) error {
@@ -22,7 +26,11 @@ func CompareAndSwap(c appengine.Context, item *memcache.Item) error {
 }
 
 func CompareAndSwapMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.CompareAndSwapMulti(c, items)
+	err := memcache.CompareAndSwapMulti(c, items)
+	if err == nil {
+		return make(appengine.MultiError, len(items))
+	}
+	return err
 }
 
 func Delete(c appengine.Context, key string) error {
@@ -30,7 +38,11 @@ func Delete(c appengine.Context, key string) error {
 }
 
 func DeleteMulti(c appengine.Context, keys []string) error {
-	return memcache.DeleteMulti(c, keys)
+	err := memcache.DeleteMulti(c, keys)
+	if err == nil {
+		return make(appengine.MultiError, len(keys))
+	}
+	return err
 }
 
 func Flush(c appengine.Context) error {
@@ -48,18 +60,15 @@ func GetMulti(c appengine.Context, keys []string) ([]*memcache.Item, error) {
 	}
 
 	items := make([]*memcache.Item, len(keys))
-	errs, errsNil := make(appengine.MultiError, len(keys)), true
+	errs := make(appengine.MultiError, len(keys))
 	for i, key := range keys {
 		if item, ok := itemsMap[key]; ok {
 			items[i] = item
 		} else {
 			errs[i] = memcache.ErrCacheMiss
-			errsNil = false
 		}
 	}
-	if errsNil {
-		return items, nil
-	}
+
 	return items, errs
 }
 
@@ -78,7 +87,11 @@ func Set(c appengine.Context, item *memcache.Item) error {
 }
 
 func SetMulti(c appengine.Context, items []*memcache.Item) error {
-	return memcache.SetMulti(c, items)
+	err := memcache.SetMulti(c, items)
+	if err == nil {
+		return make(appengine.MultiError, len(items))
+	}
+	return err
 }
 
 type Codec struct {
@@ -96,24 +109,19 @@ func (cd Codec) GetMulti(c appengine.Context, keys []string,
 
 	v := reflect.ValueOf(dst)
 	items := make([]*memcache.Item, len(keys))
-	multiErr, errsNil := make(appengine.MultiError, len(keys)), true
+	multiErr := make(appengine.MultiError, len(keys))
 	for i, key := range keys {
 		if item, ok := itemsMap[key]; ok {
 			err := cd.Unmarshal(item.Value, v.Index(i).Interface())
 			if err != nil {
 				multiErr[i] = err
-				errsNil = false
 			} else {
 				item.Object = v.Index(i).Interface()
 				items[i] = item
 			}
 		} else {
 			multiErr[i] = memcache.ErrCacheMiss
-			errsNil = false
 		}
-	}
-	if errsNil {
-		return items, nil
 	}
 	return items, multiErr
 }
@@ -143,7 +151,11 @@ func (cd Codec) marshalItems(items []*memcache.Item) error {
 }
 
 func (cd Codec) Set(c appengine.Context, item *memcache.Item) error {
-	return cd.SetMulti(c, []*memcache.Item{item})
+	err := cd.SetMulti(c, []*memcache.Item{item})
+	if me, ok := err.(appengine.MultiError); ok {
+		return me[0]
+	}
+	return err
 }
 
 func (cd Codec) SetMulti(c appengine.Context, items []*memcache.Item) error {
@@ -154,7 +166,11 @@ func (cd Codec) SetMulti(c appengine.Context, items []*memcache.Item) error {
 }
 
 func (cd Codec) Add(c appengine.Context, item *memcache.Item) error {
-	return cd.AddMulti(c, []*memcache.Item{item})
+	err := cd.AddMulti(c, []*memcache.Item{item})
+	if me, ok := err.(appengine.MultiError); ok {
+		return me[0]
+	}
+	return err
 }
 
 func (cd Codec) AddMulti(c appengine.Context, items []*memcache.Item) error {
