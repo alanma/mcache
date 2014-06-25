@@ -1,9 +1,11 @@
 mcache
 ========
 
-Package mcache is an API for App Engine's memcache. It is more consistent with the datastore API.
+Package [mcache](http://godoc.org/github.com/qedus/mcache) is a wrapper API for App Engine's memcache. It is consistent with the datastore API which returns slices instead of maps for all the `Multi` functions.
 
-There are [good arguments](https://groups.google.com/forum/#!topic/google-appengine-go/kiuvTHf32zw/discussion) for the current official [appengine/memcache](https://developers.google.com/appengine/docs/go/memcache/reference) API. However I prefer what is created here.
+*Important:* Each `Multi` function always returns an error. The error is likely to be a `appengine.MultiError` if the function was executed successfully. This is not conventional for Go however it helps make the code neater and easier to read in [https://github.com/qedus/nds](https://github.com/qedus/nds).
+
+There are [good arguments](https://groups.google.com/forum/#!topic/google-appengine-go/kiuvTHf32zw/discussion) for the current official [appengine/memcache](https://developers.google.com/appengine/docs/go/memcache/reference) API. However I prefer what is created here in some cases.
 
 The main difference is with `GetMulti`:
 
@@ -27,25 +29,20 @@ Package `github.com/qedus/mcache.GetMulti`:
     }
     
     // Use as follows:
-    if items, err := GetMulti(c, keys); err == nil {
-        // All your keys have returned an item.
-        for _, item := range items {
-            // Each item is valid here.
+    items, err := nds.GetMulti(c, keys)
+    me, ok := err.(appengine.MultiError)
+    if !ok {
+        return err
+    }
+    // Only some keys have returned an item.
+    for i, item := range items {
+        if me[i] == nil {
+	    // Valid item.
+        } else if me[i] == memcache.ErrCacheMiss {
+	    // Cache miss. Note that item will also be nil.
+        } else {
+	    // This should never be reached.
         }
-    } else if me, ok := err.(appengine.MultiError); ok {
-        // Only some keys have returned an item.
-        for i, item := range items {
-            if me[i] == nil {
-                // Valid item.
-            } else if me[i] == memcache.ErrCacheMiss {
-                // Cache miss. Note that item will also be nil.
-                continue
-            } else {
-                // This should never be reached.
-            }
-        }
-    } else {
-        // Some other error with the underlying memcache.
     }
 ```
 
